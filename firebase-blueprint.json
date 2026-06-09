@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "City": {
+      "title": "City Definition",
+      "description": "City identity and newsletter branding style configuration.",
+      "type": "object",
+      "properties": {
+        "cityName": { "type": "string" },
+        "stateName": { "type": "string" },
+        "newsletterName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "subheadline": { "type": "string" },
+        "subscriberCountOffset": { "type": "integer" }
+      },
+      "required": ["cityName", "stateName", "newsletterName", "tagline", "subheadline", "subscriberCountOffset"]
+    },
+    "Article": {
+      "title": "Newsletter Article",
+      "description": "An article or blog post belonging to a specific town.",
+      "type": "object",
+      "properties": {
+        "cityId": { "type": "string" },
+        "category": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "readTime": { "type": "string" },
+        "teaser": { "type": "string" },
+        "content": { "type": "string" },
+        "image": { "type": "string" },
+        "featured": { "type": "boolean" }
+      },
+      "required": ["cityId", "category", "title", "date", "readTime", "teaser", "content", "image"]
+    },
+    "Subscriber": {
+      "title": "Newsletter Subscriber",
+      "description": "User subscribed to newsletter updates.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "cityId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "cityId"]
+    },
+    "SponsorInquiry": {
+      "title": "Sponsorship Inquiry",
+      "description": "Lead details representing an advertiser request.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "businessName": { "type": "string" },
+        "message": { "type": "string" },
+        "cityId": { "type": "string" },
+        "packageId": { "type": "string" },
+        "packageName": { "type": "string" },
+        "price": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "cityId", "packageId"]
+    }
+  },
+  "firestore": {
+    "/cities/{cityId}": {
+      "schema": "City",
+      "description": "Holds the dynamic metadata configurations for active or coming-soon cities."
+    },
+    "/articles/{articleId}": {
+      "schema": "Article",
+      "description": "Collection of all curated newsletter guides. Queried on cityId."
+    },
+    "/subscribers/{subscriberId}": {
+      "schema": "Subscriber",
+      "description": "New newsletter signups registered online."
+    },
+    "/sponsor_inquiries/{inquiryId}": {
+      "schema": "SponsorInquiry",
+      "description": "Ad sponsor reservation requests."
+    }
+  }
+}

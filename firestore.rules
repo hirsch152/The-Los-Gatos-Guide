@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Zero-Trust fallback)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Path variable verification helper
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Cities Collection ---
+    // Anyone can read and write cities information for seeding and viewing.
+    match /cities/{cityId} {
+      allow read, write: if true;
+    }
+
+    // --- Articles Collection ---
+    // Anyone can read and write articles for dynamic loading and seeding.
+    match /articles/{articleId} {
+      allow read, write: if true;
+    }
+
+    // --- Subscribers Collection ---
+    // Public readers can create signups of standard sizes, but cannot inspect other emails.
+    match /subscribers/{subscriberId} {
+      allow get, list, update, delete: if false;
+      allow create: if isValidSubscriber(incoming()) && isValidId(subscriberId);
+    }
+
+    function isValidSubscriber(data) {
+      return data.keys().hasAll(['email', 'cityId', 'createdAt', 'interests'])
+        && data.keys().size() == 4
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 128
+        && data.cityId is string && data.cityId.size() >= 2 && data.cityId.size() <= 64
+        && data.interests is map
+        && data.createdAt == request.time;
+    }
+
+    // --- Sponsor Inquiries Collection ---
+    // Public readers can create inquiry records, but cannot read or scrape other sponsors.
+    match /sponsor_inquiries/{inquiryId} {
+      allow get, list, update, delete: if false;
+      allow create: if isValidSponsorInquiry(incoming()) && isValidId(inquiryId);
+    }
+
+    function isValidSponsorInquiry(data) {
+      return data.keys().hasAll(['name', 'email', 'businessName', 'message', 'cityId', 'packageId', 'packageName', 'price', 'createdAt'])
+        && data.keys().size() == 9
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 128
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 128
+        && data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 128
+        && data.message is string && data.message.size() <= 2000
+        && data.cityId is string && data.cityId.size() >= 2 && data.cityId.size() <= 64
+        && data.packageId is string && data.packageId.size() >= 2 && data.packageId.size() <= 64
+        && data.packageName is string && data.packageName.size() >= 2 && data.packageName.size() <= 128
+        && data.price is string && data.price.size() >= 1 && data.price.size() <= 32
+        && data.createdAt == request.time;
+    }
+  }
+}
