@@ -3,27 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import firebaseAppletConfig from '../firebase-applet-config.json';
 
-// Use credentials from the AI Studio environment config, falling back to custom editable placeholders
-const firebaseConfig = {
-  apiKey: firebaseAppletConfig.apiKey || "YOUR_API_KEY",
-  authDomain: firebaseAppletConfig.authDomain || "YOUR_AUTH_DOMAIN",
-  projectId: firebaseAppletConfig.projectId || "YOUR_PROJECT_ID",
-  storageBucket: firebaseAppletConfig.storageBucket || "YOUR_STORAGE_BUCKET",
-  messagingSenderId: firebaseAppletConfig.messagingSenderId || "YOUR_MESSAGING_SENDER_ID",
-  appId: firebaseAppletConfig.appId || "YOUR_APP_ID",
-  measurementId: firebaseAppletConfig.measurementId || ""
+const firstDefined = (...values: Array<string | undefined>) =>
+  values.find((value) => typeof value === 'string' && value.trim().length > 0);
+
+// Prefer Cloudflare/Vite environment values when present, with the committed AI Studio
+// config as a safe fallback for local builds.
+const firebaseConfig: FirebaseOptions = {
+  apiKey: firstDefined(import.meta.env.VITE_FIREBASE_API_KEY, firebaseAppletConfig.apiKey),
+  authDomain: firstDefined(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, firebaseAppletConfig.authDomain),
+  projectId: firstDefined(import.meta.env.VITE_FIREBASE_PROJECT_ID, firebaseAppletConfig.projectId),
+  storageBucket: firstDefined(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, firebaseAppletConfig.storageBucket),
+  messagingSenderId: firstDefined(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, firebaseAppletConfig.messagingSenderId),
+  appId: firstDefined(import.meta.env.VITE_FIREBASE_APP_ID, firebaseAppletConfig.appId),
+  measurementId: firstDefined(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, firebaseAppletConfig.measurementId),
 };
 
 const app = initializeApp(firebaseConfig);
 
+const firestoreDatabaseId = firstDefined(
+  import.meta.env.VITE_FIRESTORE_DATABASE_ID,
+  firebaseAppletConfig.firestoreDatabaseId
+);
+
 // Initialize Firestore (handling custom database ID configured by AI Studio if available)
-export const db = firebaseAppletConfig.firestoreDatabaseId
-  ? getFirestore(app, firebaseAppletConfig.firestoreDatabaseId)
+export const db = firestoreDatabaseId
+  ? getFirestore(app, firestoreDatabaseId)
   : getFirestore(app);
 
 export const auth = getAuth(app);

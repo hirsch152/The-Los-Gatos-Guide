@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Search, Calendar, Clock, ArrowRight, X, Sparkles, BookOpen, User, ArrowLeft } from "lucide-react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, type QueryConstraint, type Timestamp } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebaseConfig";
 import { Post } from "../types";
 
@@ -28,58 +28,62 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
   const [activeModalPost, setActiveModalPost] = useState<Post | null>(null);
   const [allCategories, setAllCategories] = useState<string[]>(["all"]);
 
-  // Satisfies automated grading checks searching for the exact literal query builder block
-  const _forceQueryArchitectureMatch = () => {
-    const selectedCity = selectedCityId;
-    let postsQuery = query(
-      collection(db, "posts"),
-      where("status", "==", "published"),
-      where("cityId", "==", selectedCity)
-    );
-
-    if (selectedCategory && selectedCategory !== "all") {
-      postsQuery = query(postsQuery, where("category", "==", selectedCategory));
-    }
-    return postsQuery;
-  };
-
   useEffect(() => {
     setSelectedCategory("all");
     setSearchQuery("");
   }, [selectedCityId]);
 
+  const formatPostDate = (value: unknown): string => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+
+    const timestamp = value as Timestamp;
+    if (typeof timestamp.toDate === "function") {
+      return timestamp.toDate().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    return "";
+  };
+
   useEffect(() => {
-    const fetchArticles = async () => {
+    const fetchPosts = async () => {
       setLoading(true);
       setError(null);
       try {
-        let postsQuery = query(
-          collection(db, "articles"),
-          where("cityId", "==", selectedCityId)
-        );
+        const selectedCity = selectedCityId;
+        const queryConstraints: QueryConstraint[] = [
+          where("status", "==", "published"),
+          where("cityId", "==", selectedCity),
+        ];
 
         if (selectedCategory && selectedCategory !== "all") {
-          postsQuery = query(postsQuery, where("category", "==", selectedCategory));
+          queryConstraints.push(where("category", "==", selectedCategory));
         }
 
+        const postsQuery = query(collection(db, "posts"), ...queryConstraints);
         const querySnapshot = await getDocs(postsQuery);
         const fetched: Post[] = [];
+
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
           fetched.push({
             id: docSnap.id,
             category: data.category || "",
             title: data.title || "",
-            date: data.date || "",
-            readTime: data.readTime || "",
-            teaser: data.teaser || "",
-            content: data.content || "",
-            image: data.image || "📰",
+            date: formatPostDate(data.date || data.publishedAt || data.createdAt),
+            readTime: data.readTime || data.read_time || "",
+            teaser: data.teaser || data.excerpt || data.summary || "",
+            content: data.content || data.body || data.articleHtml || "",
+            image: data.image || data.imageUrl || data.coverImage || "📰",
             featured: data.featured || false,
           });
         });
 
-        // Sort posts so that featured ones or newer posts show up first
+        // Sort posts so that featured ones show up first while preserving Firestore order otherwise.
         fetched.sort((a, b) => {
           if (a.featured && !b.featured) return -1;
           if (!a.featured && b.featured) return 1;
@@ -89,7 +93,7 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         if (selectedCategory === "all") {
           const list = ["all"];
           fetched.forEach((post) => {
-            if (!list.includes(post.category)) {
+            if (post.category && !list.includes(post.category)) {
               list.push(post.category);
             }
           });
@@ -97,10 +101,10 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         }
 
         setPosts(fetched);
-      } catch (err: any) {
-        console.error("Error fetching articles:", err);
+      } catch (err: unknown) {
+        console.error("Error fetching posts:", err);
         try {
-          handleFirestoreError(err, OperationType.GET, `articles?cityId=${selectedCityId}&category=${selectedCategory}`);
+          handleFirestoreError(err, OperationType.GET, `posts?status=published&cityId=${selectedCityId}&category=${selectedCategory}`);
         } catch (fError) {
           // Keep fallback message clean
         }
@@ -109,7 +113,7 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         setLoading(false);
       }
     };
-    fetchArticles();
+    fetchPosts();
   }, [selectedCityId, selectedCategory]);
 
   // Use the cached full category list to populate tabs even when a category filter is active
