@@ -13,6 +13,10 @@ export interface Post {
   content: string; // HTML or markdown content for the "Read More" modal/view
   image: string; // URL mock or abstract icon identifier
   featured?: boolean;
+  startTime?: string;
+  endTime?: string;
+  venue?: string;
+  sourceUrl?: string;
 }
 
 export interface AdPackage {
