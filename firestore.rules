@@ -19,6 +19,19 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // Auth helpers (for /users/{userId}/* paths)
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
     // --- Cities Collection ---
     // Anyone can read and write cities information for seeding and viewing.
     match /cities/{cityId} {
@@ -66,6 +79,39 @@ service cloud.firestore {
         && data.packageName is string && data.packageName.size() >= 2 && data.packageName.size() <= 128
         && data.price is string && data.price.size() >= 1 && data.price.size() <= 32
         && data.createdAt == request.time;
+    }
+
+    // --- User Data Collections ---
+    // Authenticated users can read/write only their own data tree.
+    match /users/{userId}/customers/{customerId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+    match /users/{userId}/vendors/{vendorId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+    match /users/{userId}/purchases/{purchaseId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // --- Posts Collection ---
+    // Public (unauthenticated) clients can read posts where status == 'published'.
+    // All writes (create, update, delete) are denied for client SDK.
+    // Admin SDK (firebase-admin) bypasses these rules for trusted server-side writes.
+    match /posts/{postId} {
+      allow read: if resource.data.status == 'published';
+      allow write: if false;
     }
   }
 }

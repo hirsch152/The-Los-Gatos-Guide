@@ -1,10 +1,9 @@
 {
-  "projectId": "aurareader-497903",
-  "appId": "1:48195054489:web:47bd25622d49c3ec16c108",
-  "apiKey": "AIzaSyArD_2OMS1f4IW8qZZ_Ex4E0Ua_UMoHJ-w",
-  "authDomain": "aurareader-497903.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-991ce7c7-ac37-4b9c-83e9-235e3c6b6576",
-  "storageBucket": "aurareader-497903.firebasestorage.app",
-  "messagingSenderId": "48195054489",
-  "measurementId": ""
+  "projectId": "studio-3040251133-2d8cd",
+  "appId": "1:244408601552:web:1709706765bd4b995107d5",
+  "apiKey": "AIzaSyBD6l1o8LjsfFc2BUC-9rQ6Zej4DVYii40",
+  "authDomain": "studio-3040251133-2d8cd.firebaseapp.com",
+  "storageBucket": "studio-3040251133-2d8cd.firebasestorage.app",
+  "messagingSenderId": "244408601552",
+  "firestoreDatabaseId": "(default)"
 }

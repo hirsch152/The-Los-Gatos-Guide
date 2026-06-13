@@ -1,5 +1,5 @@
 {
-  "name": "Los Gatos Pulse",
+  "name": "The Los Gatos Guide",
   "description": "A clean, modern local newsletter landing page for Los Gatos, California.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
