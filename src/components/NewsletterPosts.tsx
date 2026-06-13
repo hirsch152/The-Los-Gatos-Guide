@@ -10,6 +10,41 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebaseConfig";
 import { Post } from "../types";
 
+const CATEGORY_FILTERS = [
+  { label: "All", value: "all" },
+  { label: "Local events", value: "events" },
+  { label: "Eats", value: "eats" },
+  { label: "Weekend Plans", value: "plans" },
+] as const;
+
+const getCategoryLabel = (category: string) => {
+  return CATEGORY_FILTERS.find((item) => item.value === category)?.label || category;
+};
+
+const escapeHtml = (value: string) => {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const toHtmlContent = (body: string) => {
+  if (!body) return "<p>Details coming soon.</p>";
+  if (/<[a-z][\s\S]*>/i.test(body)) return body;
+
+  return body
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p class="mb-4">${escapeHtml(paragraph.trim())}</p>`)
+    .join("");
+};
+
+const estimateReadTime = (text: string) => {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return `${Math.max(1, Math.ceil(words / 220))} min read`;
+};
+
 interface NewsletterPostsProps {
   onSubscribeClick: () => void;
   selectedCityId: string;
@@ -26,22 +61,6 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeModalPost, setActiveModalPost] = useState<Post | null>(null);
-  const [allCategories, setAllCategories] = useState<string[]>(["all"]);
-
-  // Satisfies automated grading checks searching for the exact literal query builder block
-  const _forceQueryArchitectureMatch = () => {
-    const selectedCity = selectedCityId;
-    let postsQuery = query(
-      collection(db, "posts"),
-      where("status", "==", "published"),
-      where("cityId", "==", selectedCity)
-    );
-
-    if (selectedCategory && selectedCategory !== "all") {
-      postsQuery = query(postsQuery, where("category", "==", selectedCategory));
-    }
-    return postsQuery;
-  };
 
   useEffect(() => {
     setSelectedCategory("all");
@@ -49,12 +68,13 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
   }, [selectedCityId]);
 
   useEffect(() => {
-    const fetchArticles = async () => {
+    const fetchPosts = async () => {
       setLoading(true);
       setError(null);
       try {
         let postsQuery = query(
-          collection(db, "articles"),
+          collection(db, "posts"),
+          where("status", "==", "published"),
           where("cityId", "==", selectedCityId)
         );
 
@@ -66,68 +86,61 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         const fetched: Post[] = [];
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
+          const body = data.body || data.content || "";
+          const teaser = data.excerpt || data.subtitle || data.teaser || "";
           fetched.push({
             id: docSnap.id,
-            category: data.category || "",
+            category: data.category || "uncategorized",
             title: data.title || "",
             date: data.date || "",
-            readTime: data.readTime || "",
-            teaser: data.teaser || "",
-            content: data.content || "",
+            readTime: data.readTime || estimateReadTime(`${teaser} ${body}`),
+            teaser: teaser || "Open this guide for details.",
+            content: toHtmlContent(body),
             image: data.image || "📰",
             featured: data.featured || false,
+            startTime: data.startTime || data.time || "",
+            endTime: data.endTime || "",
+            venue: data.venue || "",
+            sourceUrl: data.sourceUrl || "",
           });
         });
 
-        // Sort posts so that featured ones or newer posts show up first
         fetched.sort((a, b) => {
           if (a.featured && !b.featured) return -1;
           if (!a.featured && b.featured) return 1;
-          return 0;
+          return String(b.date).localeCompare(String(a.date));
         });
-
-        if (selectedCategory === "all") {
-          const list = ["all"];
-          fetched.forEach((post) => {
-            if (!list.includes(post.category)) {
-              list.push(post.category);
-            }
-          });
-          setAllCategories(list);
-        }
 
         setPosts(fetched);
       } catch (err: any) {
-        console.error("Error fetching articles:", err);
+        console.error("Error fetching published posts:", err);
         try {
-          handleFirestoreError(err, OperationType.GET, `articles?cityId=${selectedCityId}&category=${selectedCategory}`);
+          handleFirestoreError(err, OperationType.GET, `posts?status=published&cityId=${selectedCityId}&category=${selectedCategory}`);
         } catch (fError) {
           // Keep fallback message clean
         }
-        setError("Unable to connect to the dynamic article feed. Please check back shortly.");
+        setError("Unable to connect to the published posts feed. Please check back shortly.");
       } finally {
         setLoading(false);
       }
     };
-    fetchArticles();
+    fetchPosts();
   }, [selectedCityId, selectedCategory]);
 
-  // Use the cached full category list to populate tabs even when a category filter is active
   const categories = useMemo(() => {
-    return allCategories;
-  }, [allCategories]);
+    return CATEGORY_FILTERS;
+  }, []);
 
   // Filter & search logic
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
-      const matchesCategory = selectedCategory === "all" || post.category === selectedCategory;
       const matchesSearch = 
         post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         post.teaser.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.category.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+        getCategoryLabel(post.category).toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
     });
-  }, [posts, selectedCategory, searchQuery]);
+  }, [posts, searchQuery]);
 
   return (
     <section id="posts-section" className="py-10 sm:py-16 bg-brand-bg/25">
@@ -173,19 +186,19 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         {/* Categories Tab Cluster */}
         <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none" id="categories-cluster">
           {categories.map((category) => {
-            const isSelected = selectedCategory === category;
+            const isSelected = selectedCategory === category.value;
             return (
               <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
+                key={category.value}
+                onClick={() => setSelectedCategory(category.value)}
                 className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   isSelected
                     ? "bg-brand-primary text-white shadow-sm"
                     : "bg-white text-brand-muted hover:text-brand-dark border border-brand-border"
                 }`}
-                id={`category-filter-${category.replace(/\s+/g, "-").toLowerCase()}`}
+                id={`category-filter-${category.value}`}
               >
-                {category === "all" ? "All" : category}
+                {category.label}
               </button>
             );
           })}
@@ -220,7 +233,7 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
                     {/* Badge + Header meta */}
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-brand-primary font-mono bg-brand-blush/30 px-2.5 py-1 rounded">
-                        {post.category}
+                        {getCategoryLabel(post.category)}
                       </span>
                       <div className="flex items-center gap-1.5 text-[11px] text-brand-muted">
                         <Clock className="w-3.5 h-3.5" />
@@ -258,14 +271,14 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         ) : (
           <div className="col-span-full py-16 text-center space-y-3 bg-white border border-brand-border rounded-2xl" id="no-search-results">
             <span className="inline-block text-3xl">☕</span>
-            <h3 className="font-serif font-bold text-lg text-brand-text">No articles match your query</h3>
+            <h3 className="font-serif font-bold text-lg text-brand-text">No published posts found</h3>
             <p className="text-brand-muted text-xs max-w-sm mx-auto">
-              Try searching for other keywords or select a different category to explore this network.
+              There are no published posts for this town and category yet.
             </p>
             <button
               onClick={() => {
                 setSearchQuery("");
-                setSelectedCategory("All");
+                setSelectedCategory("all");
               }}
               className="mt-4 px-4 py-2 bg-brand-primary text-white font-semibold text-xs rounded-xl"
               id="reset-filter-search"
@@ -302,7 +315,7 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
                   <span className="text-xl">{activeModalPost.image}</span>
                   <div>
                     <span className="block text-[10px] tracking-widest text-[#C89B3C] font-extrabold uppercase leading-none">
-                      {activeModalPost.category}
+                      {getCategoryLabel(activeModalPost.category)}
                     </span>
                     <span className="block text-xs text-brand-muted mt-0.5">
                       Published on {activeModalPost.date} • {activeModalPost.readTime}
@@ -326,6 +339,13 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
                   <h1 className="text-2xl sm:text-3xl font-serif font-extrabold text-brand-dark tracking-tight leading-snug">
                     {activeModalPost.title}
                   </h1>
+                  {(activeModalPost.startTime || activeModalPost.venue) && (
+                    <p className="mt-2 text-xs text-brand-muted">
+                      {[activeModalPost.startTime && `${activeModalPost.startTime}${activeModalPost.endTime ? ` - ${activeModalPost.endTime}` : ""}`, activeModalPost.venue]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  )}
                 </div>
 
                 {/* Subtext description / rich text parser */}
@@ -334,6 +354,18 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
                   dangerouslySetInnerHTML={{ __html: activeModalPost.content }}
                   id="modal-article-html"
                 />
+
+                {activeModalPost.sourceUrl && (
+                  <a
+                    href={activeModalPost.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-brand-primary hover:text-brand-dark"
+                  >
+                    View original source
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                )}
 
                 {/* Simulated Local Author sign-off */}
                 <div className="pt-6 border-t border-brand-border/60 flex items-center justify-between">
