@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { Landmark, Shield, Mail, Phone, MapPin, X, Heart, Github, ExternalLink } from "lucide-react";
+import { Landmark, X, Heart } from "lucide-react";
 
 interface FooterProps {
   onNavClick: (id: string) => void;
@@ -34,9 +34,14 @@ export default function Footer({ onNavClick, onSubscribeClick, cityName, newslet
           
           {/* Col 1: Brand details footer */}
           <div className="md:col-span-5 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[#2F6B4F] flex items-center justify-center text-[#F7F3E8] shadow-sm">
-                <Landmark className="w-5 h-5" id="footer-logo-landmark" />
+            <div className="space-y-2">
+              <div className="inline-flex bg-[#F7F3E8] rounded-lg px-2.5 py-2 shadow-sm">
+                <img
+                  src="/lgg-logo.png"
+                  alt="The Los Gatos Guide"
+                  className="h-11 w-auto max-w-[220px] object-contain"
+                  id="footer-logo-img"
+                />
               </div>
               <div>
                 <span className="block font-serif text-lg font-extrabold tracking-tight text-[#F7F3E8] leading-none">
@@ -67,10 +72,10 @@ export default function Footer({ onNavClick, onSubscribeClick, cityName, newslet
               </li>
               <li>
                 <button
-                  onClick={() => onNavClick("latest")}
+                  onClick={() => onNavClick("eats")}
                   className="hover:text-[#F7F3E8] hover:underline transition duration-200 cursor-pointer text-left block"
                 >
-                  Latest Guides
+                  Eats
                 </button>
               </li>
               <li>
@@ -83,26 +88,10 @@ export default function Footer({ onNavClick, onSubscribeClick, cityName, newslet
               </li>
               <li>
                 <button
-                  onClick={() => onNavClick("eats")}
+                  onClick={() => onNavClick("local-updates")}
                   className="hover:text-[#F7F3E8] hover:underline transition duration-200 cursor-pointer text-left block"
                 >
-                  Eats
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavClick("latest")}
-                  className="hover:text-[#F7F3E8] hover:underline transition duration-200 cursor-pointer text-left block"
-                >
-                  Weekend Plans
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavClick("advertise")}
-                  className="hover:text-[#F7F3E8] hover:underline transition duration-200 cursor-pointer text-left block"
-                >
-                  Advertise
+                  Local Updates
                 </button>
               </li>
             </ul>

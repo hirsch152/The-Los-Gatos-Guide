@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, Landmark, Compass, Calendar, UtensilsCrossed, Sparkles } from "lucide-react";
+import { Menu, X, Landmark, Calendar, UtensilsCrossed, Newspaper } from "lucide-react";
 
 interface NavbarProps {
   onNavClick: (section: string) => void;
@@ -18,10 +18,9 @@ export default function Navbar({ onNavClick, onSubscribeClick, cityName, newslet
   const [isOpen, setIsOpen] = useState(false);
 
   const menuItems = [
-    { label: "Latest", id: "latest", icon: Compass },
-    { label: "Events", id: "events", icon: Calendar },
     { label: "Eats", id: "eats", icon: UtensilsCrossed },
-    { label: "Advertise", id: "advertise", icon: Sparkles },
+    { label: "Events", id: "events", icon: Calendar },
+    { label: "Local Updates", id: "local-updates", icon: Newspaper },
   ];
 
   const handleLinkClick = (id: string) => {
@@ -30,9 +29,9 @@ export default function Navbar({ onNavClick, onSubscribeClick, cityName, newslet
   };
 
   return (
-    <header id="main-header" className="sticky top-0 z-50 bg-brand-bg/90 backdrop-blur-md border-b border-brand-border/60 transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+    <header id="main-header" className="sticky top-0 z-50 bg-brand-bg/90 backdrop-blur-md border-b border-brand-border/60 transition-all pt-3.5 md:pt-4.5">
+      <div className="max-w-7xl mx-auto px-6 md:px-10">
+        <div className="flex items-center justify-between h-[96px] md:h-[128px]">
           
           {/* Logo on Left */}
           <div 
@@ -41,9 +40,8 @@ export default function Navbar({ onNavClick, onSubscribeClick, cityName, newslet
             id="brand-logo-container"
           >
             <img 
-              src="/logo.png" 
-              alt={`${newsletterName} Logo`}
-              referrerPolicy="no-referrer"
+              src="/lgg-logo.png" 
+              alt="The Los Gatos Guide"
               onError={(e) => {
                 // If the custom asset is missing, fail over to a beautifully designed mock logo gracefully
                 e.currentTarget.style.display = "none";
@@ -53,7 +51,7 @@ export default function Navbar({ onNavClick, onSubscribeClick, cityName, newslet
                   fallbackElement.classList.add("flex");
                 }
               }}
-              className="h-9 sm:h-11 w-auto max-w-[210px] object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+              className="h-[52px] w-auto max-w-[210px] md:h-[76px] md:max-w-[330px] object-contain transition-transform duration-300 group-hover:scale-[1.02]"
               id="brand-logo-img"
             />
             {/* Elegant text fallback container */}
@@ -70,26 +68,27 @@ export default function Navbar({ onNavClick, onSubscribeClick, cityName, newslet
             </div>
           </div>
 
-          {/* Desktop Navigation Link Cluster */}
-          <nav className="hidden md:flex items-center gap-1.5" id="desktop-nav">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleLinkClick(item.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-brand-muted hover:text-brand-primary hover:bg-brand-blush/20 transition duration-200 cursor-pointer"
-                  id={`nav-item-${item.id}`}
-                >
-                  <Icon className="w-4 h-4 text-brand-primary/60" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
+          {/* Desktop Navigation & Action Controls Right-Aligned Row */}
+          <div className="hidden md:flex items-center gap-6 lg:gap-8" id="desktop-nav-and-cta-group">
+            {/* Desktop Navigation Link Cluster */}
+            <nav className="flex items-center gap-2" id="desktop-nav">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleLinkClick(item.id)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-brand-muted hover:text-brand-primary hover:bg-brand-blush/20 transition duration-200 cursor-pointer"
+                    id={`nav-item-${item.id}`}
+                  >
+                    <Icon className="w-4 h-4 text-brand-primary/60" />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
 
-          {/* Subscribe Call-to-action */}
-          <div className="hidden md:flex items-center" id="desktop-cta">
+            {/* Subscribe Call-to-action */}
             <button
               onClick={onSubscribeClick}
               className="px-5 py-2.5 bg-brand-primary hover:bg-brand-dark active:scale-[0.98] text-white rounded-lg text-sm font-semibold shadow-sm hover:shadow transition duration-200 cursor-pointer"
