@@ -54,7 +54,7 @@ export default function Footer({ onNavClick, onSubscribeClick, cityName, newslet
             </div>
             
             <p className="text-[#C8D6C3] text-xs sm:text-sm leading-relaxed max-w-sm">
-              A weekly local guide to the best of {cityName} and the West Valley, featuring events, restaurants, weekend ideas, family activities, and community highlights.
+              A weekly local guide to the best of {cityName}, featuring events, restaurants, weekend ideas, family activities, and community highlights.
             </p>
           </div>
 

@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Mail, Check, Star, Shield, Users } from "lucide-react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { Mail, Check, Star, Shield } from "lucide-react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebaseConfig";
 
 interface SignupFormProps {
@@ -28,18 +28,8 @@ export default function SignupForm({
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
-  const [subscriberCount, setSubscriberCount] = useState(subscriberCountOffset);
-  const [interests, setInterests] = useState({
-    events: true,
-    eats: true,
-    weekend: true,
-    family: false,
-    spotlight: true,
-  });
 
   useEffect(() => {
-    // Sync subscriber baseline count when selected town changes
-    setSubscriberCount(subscriberCountOffset);
     setDbError(null);
   }, [subscriberCountOffset, cityId]);
 
@@ -59,31 +49,32 @@ export default function SignupForm({
 
     setIsLoading(true);
     setDbError(null);
-    
-    // Normalize clean subscriber identifier
-    const subscriberId = email.replace(/[^a-zA-Z0-9_\-]+/g, "_").toLowerCase();
 
     try {
-      // Write the payload using standard setDoc to comply with exact key blueprints
-      await setDoc(doc(db, "subscribers", subscriberId), {
+      await addDoc(collection(db, "subscribers"), {
         email: email.trim(),
         cityId: cityId,
         createdAt: serverTimestamp(),
-        interests: interests
+        interests: {
+          events: true,
+          eats: true,
+          weekend: true,
+          family: true,
+          spotlight: true
+        }
       });
 
       setIsSubscribed(true);
-      setSubscriberCount(prev => prev + 1);
       localStorage.setItem(`pulse_subscribed_${cityId}`, "true");
       localStorage.setItem(`pulse_email_${cityId}`, email);
     } catch (err: any) {
       console.error("Subscription submission failed in Firestore:", err);
       try {
-        handleFirestoreError(err, OperationType.CREATE, `subscribers/${subscriberId}`);
+        handleFirestoreError(err, OperationType.CREATE, "subscribers");
       } catch (innerErr) {
         // Handle gracefully, logging the exception details
       }
-      setDbError("Slight error updating subscription. Please try again.");
+      setDbError("We could not complete your signup just now. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -174,13 +165,13 @@ export default function SignupForm({
             <div className="flex-1 space-y-5">
               <div className="space-y-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-brand-blush/30 text-brand-primary">
-                  <Star className="w-3 h-3 fill-current" id="star-icon-p" /> Curated Community Guide
+                  <Star className="w-3 h-3 fill-current" id="star-icon-p" /> Curated Weekly Guide
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-serif font-bold text-brand-text tracking-tight">
                   Don’t miss what’s happening in {cityName}.
                 </h3>
                 <p className="text-brand-muted text-sm leading-relaxed max-w-xl">
-                  Get the best of {cityName} delivered once a week on Thursday mornings. Free, outstandingly written, and actually useful.
+                  Get one friendly weekly email with local events, restaurant finds, weekend ideas, and community updates from Los Gatos.
                 </p>
               </div>
 
@@ -190,7 +181,7 @@ export default function SignupForm({
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" id="mail-input-icon" />
                     <input
                       type="email"
-                      placeholder="Enter your email address"
+                      placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -212,58 +203,6 @@ export default function SignupForm({
                   </button>
                 </div>
 
-                {/* Checklist of options */}
-                <div className="pt-2">
-                  <p className="text-xs font-semibold text-brand-text/80 mb-2.5">Customize your weekly interests:</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2">
-                    <label className="flex items-center gap-2 text-xs text-brand-muted cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={interests.events} 
-                        onChange={() => setInterests(p => ({ ...p, events: !p.events }))}
-                        className="rounded border-brand-border text-brand-primary focus:ring-brand-primary w-3.5 h-3.5 text-brand-primary bg-white" 
-                      />
-                      <span>Local Events</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-brand-muted cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={interests.eats} 
-                        onChange={() => setInterests(p => ({ ...p, eats: !p.eats }))}
-                        className="rounded border-brand-border text-brand-primary focus:ring-brand-primary w-3.5 h-3.5 text-brand-primary bg-white" 
-                      />
-                      <span>Eats & Drinks</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-brand-muted cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={interests.weekend} 
-                        onChange={() => setInterests(p => ({ ...p, weekend: !p.weekend }))}
-                        className="rounded border-brand-border text-brand-primary focus:ring-brand-primary w-3.5 h-3.5 text-brand-primary bg-white" 
-                      />
-                      <span>Weekend Plans</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-brand-muted cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={interests.family} 
-                        onChange={() => setInterests(p => ({ ...p, family: !p.family }))}
-                        className="rounded border-brand-border text-brand-primary focus:ring-brand-primary w-3.5 h-3.5 text-brand-primary bg-white" 
-                      />
-                      <span>Family Ideas</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-brand-muted cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={interests.spotlight} 
-                        onChange={() => setInterests(p => ({ ...p, spotlight: !p.spotlight }))}
-                        className="rounded border-brand-border text-brand-primary focus:ring-brand-primary w-3.5 h-3.5 text-brand-primary bg-white" 
-                      />
-                      <span>Business Spotlight</span>
-                    </label>
-                  </div>
-                </div>
-
                 {dbError && (
                   <p className="text-xs text-red-600 font-bold">{dbError}</p>
                 )}
@@ -272,47 +211,43 @@ export default function SignupForm({
               {/* Trust signals */}
               <div className="flex flex-wrap items-center gap-y-2 gap-x-6 pt-2 border-t border-brand-border/60 text-[11px] text-brand-muted">
                 <span className="flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5 text-brand-gold" id="shield-icon" /> No spam. Just pure local gems.
+                  <Shield className="w-3.5 h-3.5 text-brand-gold" id="shield-icon" /> No spam. One email a week. Unsubscribe anytime.
                 </span>
-                <span className="flex items-center gap-1">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted invisible" />
-                  <Users className="w-3.5 h-3.5 text-brand-gold" /> Delivered every Thursday.
-                </span>
-                <span>Unsubscribe in 1-click anytime.</span>
               </div>
             </div>
 
-            {/* Social Proof Column */}
+            {/* Weekly Guide Summary Column */}
             <div className="w-full md:w-64 bg-brand-bg/40 rounded-xl p-5 border border-brand-border/50 flex flex-col justify-between gap-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-1.5 text-brand-primary font-medium text-xs">
-                  <Users className="w-4 h-4" id="users-icon" />
-                  <span>COMMUNITY INSIDER</span>
+                  <Star className="w-4 h-4 fill-current" id="guide-includes-icon" />
+                  <span>WEEKLY LOCAL ROUNDUP</span>
                 </div>
-                <div className="space-y-1">
-                  <div className="text-3xl font-serif font-black text-brand-text tracking-tight">
-                    {subscriberCount.toLocaleString()}+
-                  </div>
+                <div className="space-y-2">
+                  <h4 className="text-xl font-serif font-black text-brand-text tracking-tight">
+                    Weekly Guide Includes
+                  </h4>
                   <p className="text-xs text-brand-muted leading-relaxed">
-                    Locals who reside, shop, and volunteer in {cityName} are already reading.
+                    Built for locals who want the good stuff without hunting for it.
                   </p>
                 </div>
               </div>
 
-              {/* Realistic quote card */}
-              <div className="bg-white rounded-lg p-3.5 border border-brand-border/60 shadow-sm space-y-2">
-                <p className="text-[11px] italic text-brand-text leading-relaxed">
-                  "The only newsletter I look forward to opening. It single-handedly saved our weekend plans."
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-brand-blush/40 flex items-center justify-center text-[10px] font-bold text-brand-primary">
-                    JD
-                  </div>
-                  <div>
-                    <h5 className="text-[10px] font-bold text-brand-text">Jennifer D.</h5>
-                    <p className="text-[9px] text-brand-muted">Almond Grove Resident</p>
-                  </div>
-                </div>
+              <div className="bg-white rounded-lg p-3.5 border border-brand-border/60 shadow-sm">
+                <ul className="space-y-2.5 text-xs text-brand-text">
+                  {[
+                    "Events worth knowing about",
+                    "Restaurant and coffee finds",
+                    "Weekend ideas",
+                    "Community updates",
+                    "New openings and local notes"
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2 leading-relaxed">
+                      <Check className="w-3.5 h-3.5 text-brand-primary mt-0.5 shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </motion.div>

@@ -9,14 +9,20 @@ import firebaseAppletConfig from '../firebase-applet-config.json';
 
 const FIREBASE_PROJECT_ID = "studio-3040251133-2d8cd";
 
+type FirebaseAppletConfig = typeof firebaseAppletConfig & {
+  measurementId?: string;
+};
+
+const appletConfig = firebaseAppletConfig as FirebaseAppletConfig;
+
 const firebaseConfig = {
-  apiKey: firebaseAppletConfig.apiKey || "",
-  authDomain: firebaseAppletConfig.authDomain || `${FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  apiKey: appletConfig.apiKey || "",
+  authDomain: appletConfig.authDomain || `${FIREBASE_PROJECT_ID}.firebaseapp.com`,
   projectId: FIREBASE_PROJECT_ID,
-  storageBucket: firebaseAppletConfig.storageBucket || `${FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  messagingSenderId: firebaseAppletConfig.messagingSenderId || "",
-  appId: firebaseAppletConfig.appId || "",
-  measurementId: firebaseAppletConfig.measurementId || ""
+  storageBucket: appletConfig.storageBucket || `${FIREBASE_PROJECT_ID}.firebasestorage.app`,
+  messagingSenderId: appletConfig.messagingSenderId || "",
+  appId: appletConfig.appId || "",
+  measurementId: appletConfig.measurementId || ""
 };
 
 const app = initializeApp(firebaseConfig);

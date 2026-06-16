@@ -26,6 +26,7 @@ export default function Hero({
 }: HeroProps) {
   // Active demo state for interactive mock newsletter preview card
   const [activeTab, setActiveTab] = useState<"events" | "eats" | "family">("events");
+  const isLosGatosTagline = tagline === "Your weekly guide to Los Gatos.";
 
   const tabs = [
     { id: "events", label: "🎨 Local Weekend", icon: Calendar },
@@ -84,8 +85,20 @@ export default function Hero({
               <Sparkles className="w-3.5 h-3.5" id="hero-sparkle" /> <span>The #1 Local Newsletter Network</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-extrabold tracking-tight text-brand-dark leading-[1.08]">
-              {tagline}
+            <h1
+              className="text-4xl sm:text-5xl lg:text-5xl 2xl:text-6xl font-serif font-extrabold tracking-tight text-brand-dark leading-[1.08]"
+              aria-label={tagline}
+            >
+              {isLosGatosTagline ? (
+                <>
+                  <span className="block">Your weekly guide to</span>
+                  <span className="block">
+                    <span className="whitespace-nowrap">Los Gatos.</span>
+                  </span>
+                </>
+              ) : (
+                tagline
+              )}
             </h1>
 
             <p className="text-brand-muted text-base sm:text-lg lg:text-xl leading-relaxed max-w-2xl mx-auto lg:mx-0 font-sans">

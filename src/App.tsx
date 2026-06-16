@@ -13,7 +13,7 @@ import NewsletterPosts from "./components/NewsletterPosts";
 import SignupForm from "./components/SignupForm";
 import Advertise from "./components/Advertise";
 import Footer from "./components/Footer";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "./firebaseConfig";
 
 // Interface for different cities in our newsletter network
@@ -37,9 +37,10 @@ interface NetworkCity {
 const STATIC_CITY_MUTED_TEMPLATES = {
   "los-gatos": "#5B7063",
   "saratoga": "#6B625C",
-  "campbell": "#7D6758",
-  "monte-sereno": "#52677A"
+  "campbell": "#7D6758"
 };
+
+const enabledCityIds = ["los-gatos"];
 
 const DEFAULT_NETWORK_CITIES: NetworkCity[] = [
   {
@@ -47,8 +48,8 @@ const DEFAULT_NETWORK_CITIES: NetworkCity[] = [
     name: "Los Gatos",
     state: "CA",
     status: "active",
-    tagline: "Your weekly guide to Los Gatos and the West Valley.",
-    subheadline: "Local events, restaurants, weekend ideas, family activities, and community highlights from Los Gatos, Saratoga, Campbell, and Monte Sereno, delivered to your inbox.",
+    tagline: "Your weekly guide to Los Gatos.",
+    subheadline: "Local events, restaurants, weekend ideas, family activities, and community highlights from Los Gatos, delivered to your inbox.",
     subscriberCountOffset: 4250,
     colors: {
       primary: "#2C5E43",
@@ -88,22 +89,6 @@ const DEFAULT_NETWORK_CITIES: NetworkCity[] = [
       borderStyle: "border-[#F1DFD0]",
       textComfort: "text-[#2A1D15]"
     }
-  },
-  {
-    id: "monte-sereno",
-    name: "Monte Sereno",
-    state: "CA",
-    status: "active",
-    launchDate: "September 2026",
-    tagline: "Cozy neighborhood chronicles for Monte Sereno residents.",
-    subheadline: "Exclusive hillside community updates, walking events, library gatherings, and historic mountain-side perspectives.",
-    subscriberCountOffset: 410,
-    colors: {
-      primary: "#204060",
-      bgStyle: "bg-[#F3F7FA]",
-      borderStyle: "border-[#DBE5ED]",
-      textComfort: "text-[#142330]"
-    }
   }
 ];
 
@@ -123,13 +108,6 @@ const getAccentColorsForCity = (cityId: string) => {
         bgStyle: "bg-[#FCF7F2]",
         borderStyle: "border-[#F1DFD0]",
         textComfort: "text-[#2A1D15]"
-      };
-    case "monte-sereno":
-      return {
-        primary: "#204060",
-        bgStyle: "bg-[#F3F7FA]",
-        borderStyle: "border-[#DBE5ED]",
-        textComfort: "text-[#142330]"
       };
     case "los-gatos":
     default:
@@ -153,13 +131,9 @@ export default function App() {
 
   // Initialize city navigation from local configuration. Loading the site should not write to Firebase.
   useEffect(() => {
-    const sortedCities = [...DEFAULT_NETWORK_CITIES].sort((a, b) => {
-      if (a.id === "los-gatos" && b.id !== "los-gatos") return -1;
-      if (b.id === "los-gatos" && a.id !== "los-gatos") return 1;
-      return a.name.localeCompare(b.name);
-    });
-    setCities(sortedCities);
-    setSelectedCity(sortedCities.find(c => c.id === "los-gatos") || sortedCities[0]);
+    const enabledCities = DEFAULT_NETWORK_CITIES.filter(city => enabledCityIds.includes(city.id));
+    setCities(enabledCities);
+    setSelectedCity(enabledCities.find(c => c.id === "los-gatos") || enabledCities[0]);
     setLoading(false);
   }, []);
 
@@ -187,7 +161,7 @@ export default function App() {
 
   // Smooth scroll handler targeting component blocks
   const handleScrollToSegment = (sectionId: string) => {
-    if (sectionId === "latest" || sectionId === "events" || sectionId === "eats") {
+    if (sectionId === "local-updates" || sectionId === "latest" || sectionId === "events" || sectionId === "eats") {
       const postsSegment = document.getElementById("posts-section");
       if (postsSegment) {
         postsSegment.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -228,10 +202,9 @@ export default function App() {
     if (!notificationEmail || !notificationEmail.includes("@") || !selectedCity) return;
 
     setLoadingLaunch(true);
-    const subscriberId = notificationEmail.replace(/[^a-zA-Z0-9_\-]+/g, "_").toLowerCase();
 
     try {
-      await setDoc(doc(db, "subscribers", subscriberId), {
+      await addDoc(collection(db, "subscribers"), {
         email: notificationEmail.trim(),
         cityId: selectedCity.id,
         createdAt: serverTimestamp(),
@@ -248,7 +221,7 @@ export default function App() {
     } catch (err: any) {
       console.error("Failed to commit launch notify request to Firestore:", err);
       try {
-        handleFirestoreError(err, OperationType.CREATE, `subscribers/${subscriberId}`);
+        handleFirestoreError(err, OperationType.CREATE, "subscribers");
       } catch (fError) {}
     } finally {
       setLoadingLaunch(false);
@@ -275,35 +248,37 @@ export default function App() {
     <div className="min-h-screen bg-brand-bg transition-colors duration-500 font-sans" id="applet-master">
       
       {/* 1. NETWORK CONTROLLER HUB (TOP BAR BANNER) */}
-      <div className="bg-[#0f0408] text-white py-2.5 px-4 border-b border-[#250a15]" id="network-bar-header">
-        <div className="max-w-7xl mx-auto flex justify-center sm:justify-end gap-2.5">
-          
-          {/* City Choice Switchers */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
-            <span className="text-slate-200 font-bold text-[11px] shrink-0 hidden md:inline">Select local roadmaps:</span>
-            {cities.map((city) => {
-              const isActiveChoice = activeCity.id === city.id;
-              const cityColors = getAccentColorsForCity(city.id);
-              return (
-                <button
-                  key={city.id}
-                  onClick={() => setSelectedCity(city)}
-                  style={isActiveChoice ? { backgroundColor: cityColors.primary } : undefined}
-                  className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-extrabold tracking-wide transition-all duration-200 shrink-0 cursor-pointer shadow-sm ${
-                    isActiveChoice
-                      ? "text-white ring-2 ring-white/10"
-                      : "bg-white/10 text-white/95 border border-white/20 hover:bg-white/25 hover:text-white"
-                  }`}
-                  id={`network-city-selector-${city.id}`}
-                >
-                  {city.name} <span className="ml-1 opacity-90">{city.status === "coming_soon" ? "⏱️" : "✓"}</span>
-                </button>
-              );
-            })}
-          </div>
+      {cities.length > 1 && (
+        <div className="bg-[#0f0408] text-white py-2.5 px-4 border-b border-[#250a15]" id="network-bar-header">
+          <div className="max-w-7xl mx-auto flex justify-center sm:justify-end gap-2.5">
+            
+            {/* City Choice Switchers */}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
+              <span className="text-slate-200 font-bold text-[11px] shrink-0 hidden md:inline">Select local roadmaps:</span>
+              {cities.map((city) => {
+                const isActiveChoice = activeCity.id === city.id;
+                const cityColors = getAccentColorsForCity(city.id);
+                return (
+                  <button
+                    key={city.id}
+                    onClick={() => setSelectedCity(city)}
+                    style={isActiveChoice ? { backgroundColor: cityColors.primary } : undefined}
+                    className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-extrabold tracking-wide transition-all duration-200 shrink-0 cursor-pointer shadow-sm ${
+                      isActiveChoice
+                        ? "text-white ring-2 ring-white/10"
+                        : "bg-white/10 text-white/95 border border-white/20 hover:bg-white/25 hover:text-white"
+                    }`}
+                    id={`network-city-selector-${city.id}`}
+                  >
+                    {city.name} <span className="ml-1 opacity-90">{city.status === "coming_soon" ? "⏱️" : "✓"}</span>
+                  </button>
+                );
+              })}
+            </div>
 
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 2. MAIN HEADER / NAVIGATION */}
       <Navbar 
