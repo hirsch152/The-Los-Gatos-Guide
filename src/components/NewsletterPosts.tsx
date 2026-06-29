@@ -9,6 +9,7 @@ import { Search, Calendar, Clock, ArrowRight, X, Sparkles, BookOpen, User, Arrow
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebaseConfig";
 import { Post } from "../types";
+import { normalizePostBody, type ContentBlock } from "../lib/postBody";
 
 const CATEGORY_FILTERS = [
   { label: "All", value: "all" },
@@ -19,25 +20,6 @@ const CATEGORY_FILTERS = [
 
 const getCategoryLabel = (category: string) => {
   return CATEGORY_FILTERS.find((item) => item.value === category)?.label || category;
-};
-
-const escapeHtml = (value: string) => {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
-
-const toHtmlContent = (body: string) => {
-  if (!body) return "<p>Details coming soon.</p>";
-  if (/<[a-z][\s\S]*>/i.test(body)) return body;
-
-  return body
-    .split(/\n{2,}/)
-    .map((paragraph) => `<p class="mb-4">${escapeHtml(paragraph.trim())}</p>`)
-    .join("");
 };
 
 const estimateReadTime = (text: string) => {
@@ -88,6 +70,7 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
           const data = docSnap.data();
           const body = data.body || data.content || "";
           const teaser = data.excerpt || data.subtitle || data.teaser || "";
+          const blocks = (data.contentBlocks as ContentBlock[] | undefined) || undefined;
           fetched.push({
             id: docSnap.id,
             category: data.category || "uncategorized",
@@ -95,7 +78,7 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
             date: data.date || "",
             readTime: data.readTime || estimateReadTime(`${teaser} ${body}`),
             teaser: teaser || "Open this guide for details.",
-            content: toHtmlContent(body),
+            content: normalizePostBody(body, blocks),
             image: data.image || "📰",
             featured: data.featured || false,
             startTime: data.startTime || data.time || "",

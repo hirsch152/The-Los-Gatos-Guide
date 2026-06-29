@@ -34,3 +34,35 @@ body {
   overflow-x: hidden;
 }
 
+/* Post body normalized rendering: paragraphs, headings, lists */
+.post-paragraph {
+  margin: 0 0 1rem 0;
+  line-height: 1.65;
+}
+.post-paragraph:last-child {
+  margin-bottom: 0;
+}
+.post-heading {
+  margin: 1.5rem 0 0.5rem 0;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  color: var(--color-brand-dark);
+}
+.post-heading:first-child {
+  margin-top: 0;
+}
+.post-list {
+  margin: 0 0 1rem 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+.post-list-item {
+  margin: 0.25rem 0;
+  line-height: 1.6;
+}
+.post-list-item::marker {
+  color: var(--color-brand-primary);
+}
+
