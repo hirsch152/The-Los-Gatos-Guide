@@ -12,9 +12,9 @@ import { Post } from "../types";
 
 const CATEGORY_FILTERS = [
   { label: "All", value: "all" },
-  { label: "Local events", value: "events" },
+  { label: "Events", value: "events" },
   { label: "Eats", value: "eats" },
-  { label: "Weekend Plans", value: "plans" },
+  { label: "Local Updates", value: "local-updates" },
 ] as const;
 
 const getCategoryLabel = (category: string) => {
@@ -68,6 +68,8 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
   }, [selectedCityId]);
 
   useEffect(() => {
+    let isCurrentRequest = true;
+
     const fetchPosts = async () => {
       setLoading(true);
       setError(null);
@@ -108,10 +110,18 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         fetched.sort((a, b) => {
           if (a.featured && !b.featured) return -1;
           if (!a.featured && b.featured) return 1;
-          return String(b.date).localeCompare(String(a.date));
+          const dateComparison = String(b.date).localeCompare(String(a.date));
+          if (dateComparison !== 0) return dateComparison;
+
+          const titleComparison = a.title.localeCompare(b.title);
+          if (titleComparison !== 0) return titleComparison;
+
+          return a.id.localeCompare(b.id);
         });
 
-        setPosts(fetched);
+        if (isCurrentRequest) {
+          setPosts(fetched);
+        }
       } catch (err: any) {
         console.error("Error fetching published posts:", err);
         try {
@@ -119,12 +129,20 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         } catch (fError) {
           // Keep fallback message clean
         }
-        setError("Unable to connect to the published posts feed. Please check back shortly.");
+        if (isCurrentRequest) {
+          setError("Unable to connect to the published posts feed. Please check back shortly.");
+        }
       } finally {
-        setLoading(false);
+        if (isCurrentRequest) {
+          setLoading(false);
+        }
       }
     };
     fetchPosts();
+
+    return () => {
+      isCurrentRequest = false;
+    };
   }, [selectedCityId, selectedCategory]);
 
   const categories = useMemo(() => {

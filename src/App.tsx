@@ -172,6 +172,9 @@ export default function App() {
         } else if (sectionId === "eats") {
           const eatsFilterBtn = document.getElementById("category-filter-eats");
           if (eatsFilterBtn) eatsFilterBtn.click();
+        } else if (sectionId === "local-updates") {
+          const localUpdatesFilterBtn = document.getElementById("category-filter-local-updates");
+          if (localUpdatesFilterBtn) localUpdatesFilterBtn.click();
         } else {
           const allFilterBtn = document.getElementById("category-filter-all");
           if (allFilterBtn) allFilterBtn.click();
