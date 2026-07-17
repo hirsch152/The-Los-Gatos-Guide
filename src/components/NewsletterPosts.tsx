@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Search, Calendar, Clock, ArrowRight, X, Sparkles, BookOpen, User, ArrowLeft } from "lucide-react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebaseConfig";
+import { contentBlocksToText, selectPostBody, splitPlainTextBody } from "../lib/postBody";
 import { Post } from "../types";
 
 const CATEGORY_FILTERS = [
@@ -19,25 +20,6 @@ const CATEGORY_FILTERS = [
 
 const getCategoryLabel = (category: string) => {
   return CATEGORY_FILTERS.find((item) => item.value === category)?.label || category;
-};
-
-const escapeHtml = (value: string) => {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
-
-const toHtmlContent = (body: string) => {
-  if (!body) return "<p>Details coming soon.</p>";
-  if (/<[a-z][\s\S]*>/i.test(body)) return body;
-
-  return body
-    .split(/\n{2,}/)
-    .map((paragraph) => `<p class="mb-4">${escapeHtml(paragraph.trim())}</p>`)
-    .join("");
 };
 
 const estimateReadTime = (text: string) => {
@@ -88,16 +70,18 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
         const fetched: Post[] = [];
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          const body = data.body || data.content || "";
+          const { contentBlocks, fallbackText } = selectPostBody(data.contentBlocks, data.body, data.content);
+          const bodyText = contentBlocks.length > 0 ? contentBlocksToText(contentBlocks) : fallbackText;
           const teaser = data.excerpt || data.subtitle || data.teaser || "";
           fetched.push({
             id: docSnap.id,
             category: data.category || "uncategorized",
             title: data.title || "",
             date: data.date || "",
-            readTime: data.readTime || estimateReadTime(`${teaser} ${body}`),
+            readTime: data.readTime || estimateReadTime(`${teaser} ${bodyText}`),
             teaser: teaser || "Open this guide for details.",
-            content: toHtmlContent(body),
+            contentBlocks,
+            content: fallbackText,
             image: data.image || "📰",
             featured: data.featured || false,
             startTime: data.startTime || data.time || "",
@@ -323,7 +307,7 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
               initial={{ scale: 0.96, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.96, y: 15 }}
-              className="bg-white border border-brand-border rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col"
+              className="bg-white border border-brand-border rounded-2xl w-full max-w-[46rem] max-h-[85vh] overflow-hidden shadow-2xl flex flex-col"
               id="editorial-modal-card"
             >
               
@@ -342,19 +326,20 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
                 </div>
                 <button
                   onClick={() => setActiveModalPost(null)}
-                  className="p-1.5 rounded-lg border border-brand-border hover:bg-brand-border/40 text-brand-muted hover:text-brand-text transition cursor-pointer"
+                  className="p-2 rounded-lg border border-brand-border hover:bg-brand-border/40 text-brand-muted hover:text-brand-text transition cursor-pointer shrink-0"
                   id="close-modal-btn"
+                  aria-label="Close article"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Scrollable Reader Content */}
-              <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 text-sm leading-relaxed text-brand-text" id="modal-content-scroller">
+              <div className="p-6 sm:p-8 overflow-y-auto overflow-x-hidden space-y-6 flex-1 text-sm sm:text-base leading-relaxed sm:leading-[1.6] text-brand-text" id="modal-content-scroller">
                 
                 {/* Styled Title inside modal */}
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-serif font-extrabold text-brand-dark tracking-tight leading-snug">
+                  <h1 className="text-2xl sm:text-4xl font-serif font-extrabold text-brand-dark tracking-tight leading-snug">
                     {activeModalPost.title}
                   </h1>
                   {(activeModalPost.startTime || activeModalPost.venue) && (
@@ -366,12 +351,33 @@ export default function NewsletterPosts({ onSubscribeClick, selectedCityId, news
                   )}
                 </div>
 
-                {/* Subtext description / rich text parser */}
-                <div 
-                  className="prose prose-sm prose-wine text-brand-text"
-                  dangerouslySetInnerHTML={{ __html: activeModalPost.content }}
+                {/* Structured article body with a plain-text fallback for legacy posts */}
+                <div
+                  className="text-brand-text max-w-none break-words [&_p]:mb-4 [&_p:last-child]:mb-0 [&_h2]:mt-7 [&_h2]:mb-3 [&_h2]:font-serif [&_h2]:text-xl [&_h2]:sm:text-2xl [&_h2]:font-extrabold [&_h2]:leading-snug [&_h2]:text-brand-dark [&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:font-serif [&_h3]:text-lg [&_h3]:sm:text-xl [&_h3]:font-bold [&_h3]:leading-snug [&_h3]:text-brand-dark [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1.5 [&_a]:font-semibold [&_a]:text-brand-primary [&_a]:underline [&_a]:decoration-brand-border [&_a]:underline-offset-2 [&_a]:break-words"
                   id="modal-article-html"
-                />
+                >
+                  {activeModalPost.contentBlocks.length > 0
+                    ? activeModalPost.contentBlocks.map((block, blockIndex) => {
+                        if (block.type === "heading") {
+                          return <h3 key={blockIndex}>{block.text}</h3>;
+                        }
+
+                        if (block.type === "list") {
+                          return (
+                            <ul key={blockIndex}>
+                              {block.items.map((item, itemIndex) => (
+                                <li key={itemIndex}>{item}</li>
+                              ))}
+                            </ul>
+                          );
+                        }
+
+                        return <p key={blockIndex}>{block.text}</p>;
+                      })
+                    : splitPlainTextBody(activeModalPost.content).map((paragraph, paragraphIndex) => (
+                        <p key={paragraphIndex}>{paragraph}</p>
+                      ))}
+                </div>
 
                 {activeModalPost.sourceUrl && (
                   <a

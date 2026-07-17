@@ -3,6 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type PostContentBlock =
+  | { type: "paragraph"; text: string }
+  | { type: "heading"; text: string }
+  | { type: "list"; items: string[] };
+
 export interface Post {
   id: string;
   category: string;
@@ -10,7 +15,8 @@ export interface Post {
   date: string;
   readTime: string;
   teaser: string;
-  content: string; // HTML or markdown content for the "Read More" modal/view
+  contentBlocks: PostContentBlock[];
+  content: string; // Plain-text fallback for posts without valid content blocks
   image: string; // URL mock or abstract icon identifier
   featured?: boolean;
   startTime?: string;
